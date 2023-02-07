@@ -3,8 +3,11 @@ package ru.hh.school.homework;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+
+import static java.lang.System.currentTimeMillis;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,14 +17,38 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
+import ru.hh.school.homework.search.PrintUtil;
+import ru.hh.school.homework.search.file.ForkJionFilesSearcher;
+import ru.hh.school.homework.search.file.FileSearcher;
+import ru.hh.school.homework.search.google.CompletableFutureSearcher;
+import ru.hh.school.homework.search.google.OnlineSearcher;
+import ru.hh.school.homework.search.word.ParallelStreamTopWordsSearcher;
+import ru.hh.school.homework.search.word.TopWordsSearcher;
 
 public class Launcher {
 
   public static void main(String[] args) throws IOException {
     // Написать код, который, как можно более параллельно:
     // - по заданному пути найдет все "*.java" файлы
+    Path root = Path.of("D:", "projects", "work", "hh-school",
+        "parallelism", "src", "main", "java", "ru", "school", "parallelism");
+    String fileName = ".java";
+    FileSearcher fileSearcher = new ForkJionFilesSearcher();
+    long startTime = currentTimeMillis();
+    List<String> files = fileSearcher.parallelSearch(root, fileName);
+    PrintUtil.printWordsOfFiles(files, startTime, currentTimeMillis());
+
     // - для каждого файла вычислит 10 самых популярных слов (см. #naiveCount())
+    TopWordsSearcher topWordsSearcher = new ParallelStreamTopWordsSearcher();
+    startTime = currentTimeMillis();
+    Map<String, Integer> wordsFromFiles = topWordsSearcher.inFilesTopWordsCounter(files, 10);
+    PrintUtil.printWordsOfFiles(wordsFromFiles, startTime, currentTimeMillis());
+
     // - соберет top 10 для каждой папки в которой есть хотя-бы один java файл
+    startTime = currentTimeMillis();
+    Map<String, Integer> wordsFromFolders = topWordsSearcher.inFoldersTopWordsCounter(files, 10);
+    PrintUtil.printWordsOfFolders(wordsFromFolders, startTime, currentTimeMillis());
+
     // - для каждого слова сходит в гугл и вернет количество результатов по нему (см. #naiveSearch())
     // - распечатает в консоль результаты в виде:
     // <папка1> - <слово #1> - <кол-во результатов в гугле>
@@ -36,6 +63,10 @@ public class Launcher {
     //
     // Порядок результатов в консоли не обязательный.
     // При желании naiveSearch и naiveCount можно оптимизировать.
+    OnlineSearcher onlineSearcher = new CompletableFutureSearcher();
+    startTime = currentTimeMillis();
+    List<String> resultsFromGoogle = onlineSearcher.onlineSearch(wordsFromFolders);
+    PrintUtil.printStringList(resultsFromGoogle, startTime, currentTimeMillis());
 
     // test our naive methods:
     testCount();
